@@ -72,13 +72,15 @@ jobs:
               echo "Docker username secret is configured"
             fi
 
-        - name: push docker image
+        - name: Docker Push
           uses: docker/build-push-action@v6
+          env:
+            DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
           with:
-            context: src/product-catalog
+            context: ./src/product-catalog
             file: ./src/product-catalog/Dockerfile
             push: true
-            tags: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{ github.run_id }}
+            tags: ${{ env.DOCKER_USER }}/product-catalog:${{ github.run_id }}
         
     updatek8s:
         runs-on: ubuntu-latest
