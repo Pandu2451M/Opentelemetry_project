@@ -61,13 +61,24 @@ jobs:
             username: ${{ secrets.DOCKER_USERNAME }}
             password: ${{ secrets.DOCKER_TOKEN }}
 
+        - name: Check Docker username secret
+          env:
+            DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+          run: |
+            if [ -z "$DOCKER_USER" ]; then
+              echo "ERROR: DOCKER_USERNAME is empty"
+              exit 1
+            else
+              echo "Docker username secret is configured"
+            fi
+
         - name: push docker image
           uses: docker/build-push-action@v6
           with:
             context: src/product-catalog
-            file: Dockerfile
+            file: ./src/product-catalog/Dockerfile
             push: true
-            tags: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{github.run_id}}
+            tags: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{ github.run_id }}
         
     updatek8s:
         runs-on: ubuntu-latest
