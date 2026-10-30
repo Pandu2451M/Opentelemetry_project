@@ -1,16 +1,18 @@
-// CI/CD for Product Catalog Service
-pipeline {
-    agent any                      // run on any available node
 
-    options {                      // log times, no parallel builds,
-        timestamps()               // keep last 20 builds, hard 30-min ceiling
+// CI/CD for Product Catalog Service
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '20'))
         timeout(time: 30, unit: 'MINUTES')
     }
 
     tools {
-        go 'Go1.22'                // provision the Go compiler (matches Tools config)
+        go 'Go1.22'
     }
 
     environment {
@@ -21,24 +23,52 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
-            steps { checkout scm }             // fresh copy of the pushed code
+            steps {
+                checkout scm
+            }
         }
 
-        stage('Dependencies') {                // fetch Go libraries listed in go.mod
-            steps { dir('src/product-catalog') { sh 'go mod download' } }
+        stage('Dependencies') {
+            steps {
+                dir('src/product-catalog') {
+                    sh 'go mod download'
+                }
+            }
         }
 
-        stage('Lint') {                        // static analysis — fail fast on bad code
-            steps { dir('src/product-catalog') { sh 'golangci-lint run' } }
+        stage('Lint') {
+            steps {
+                dir('src/product-catalog') {
+                    sh '''
+                        echo "Checking Go version..."
+                        go version
+
+                        echo "Checking golangci-lint version..."
+                        golangci-lint --version
+
+                        echo "Running Linter..."
+                        golangci-lint run
+                    '''
+                }
+            }
         }
 
-        stage('Build') {                       // must compile before anything else
-            steps { dir('src/product-catalog') { sh 'go build -o product-catalog-service main.go' } }
+        stage('Build') {
+            steps {
+                dir('src/product-catalog') {
+                    sh 'go build -o product-catalog-service main.go'
+                }
+            }
         }
 
-        stage('Test') {                        // unit tests
-            steps { dir('src/product-catalog') { sh 'go test ./...' } }
+        stage('Test') {
+            steps {
+                dir('src/product-catalog') {
+                    sh 'go test ./...'
+                }
+            }
         }
 
         stage('Docker Build and Push') {
@@ -84,15 +114,21 @@ pipeline {
                 ]) {
                     sh '''
                         set -eu
+
                         IMAGE="${DOCKERHUB_USER}/product-catalog:${BUILD_NUMBER}"
+
                         git config user.name "Jenkins"
                         git config user.email "jenkins@example.com"
+
                         sed -i \
                           "s|^\\([[:space:]]*image:[[:space:]]*\\).*|\\1$IMAGE|" \
                           "$K8S_MANIFEST"
+
                         git add "$K8S_MANIFEST"
+
                         if ! git diff --cached --quiet; then
                             git commit -m "[CI]: Update product catalog image to $BUILD_NUMBER"
+
                             git push \
                               "https://x-access-token:${GITHUB_TOKEN}@github.com/Pandu2451M/Opentelemetry_project.git" \
                               HEAD:main
@@ -106,8 +142,17 @@ pipeline {
     }
 
     post {
-        success { echo "SUCCESS — image ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} pushed and manifest updated." }
-        failure { echo 'Pipeline failed — check the stage logs above.' }
-        always  { echo 'Pipeline execution finished.' }
+        success {
+            echo "SUCCESS — image ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER} pushed and manifest updated."
+        }
+
+        failure {
+            echo 'Pipeline failed — check the stage logs above.'
+        }
+
+        always {
+            echo 'Pipeline execution finished.'
+        }
     }
 }
+
